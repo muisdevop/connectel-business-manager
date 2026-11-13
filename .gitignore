@@ -10,3 +10,9 @@ dist/
 dev/*.log
 # Local-only source workbook (private financials) — never publish
 ConnecTEL Business Management.xlsx
+# Qoder Sites descriptor (platform-specific; irrelevant to the Docker/Coolify deploy)
+*.qoder.site
+# Local Coolify test scaffolding (contains throwaway test credentials)
+dev/coolify.test.env
+dev/docker-compose.test.yml
+dev/e2e-coolify.mjs

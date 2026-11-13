@@ -1,0 +1,56 @@
+# Self-contained stack for Coolify (app + Postgres).
+#
+# No host ports are published: Coolify's reverse proxy routes to the app's exposed
+# port 3000. In Coolify, set the app service domain (e.g. https://app.example.com)
+# and put that SAME https origin in APP_ORIGIN.
+#
+# Required environment (set these in Coolify; see .env.example):
+#   DB_PASSWORD   any strong password for the Postgres role
+#   APP_ORIGIN    https://<your-domain>   (must be https)
+# Optional (first-boot account passwords; random generated + logged once if omitted):
+#   ADMIN_PASSWORD, ACCOUNTANT_PASSWORD, CASHIER_PASSWORD, VIEWER_PASSWORD
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      PG_POOL_MAX: "10"
+      DATABASE_URL: postgres://connectel:${DB_PASSWORD:?set DB_PASSWORD}@db:5432/connectel
+      APP_ORIGIN: ${APP_ORIGIN:?set APP_ORIGIN to the https origin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ACCOUNTANT_PASSWORD: ${ACCOUNTANT_PASSWORD:-}
+      CASHIER_PASSWORD: ${CASHIER_PASSWORD:-}
+      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/functions/v1/app/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: connectel
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: connectel
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U connectel -d connectel"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

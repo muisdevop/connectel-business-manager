@@ -58,3 +58,37 @@ For database or Storage, follow the corresponding `sites-building` references an
 See `PROVENANCE.md` and `vendor/` for source attribution and the preserved stylesheet license.
 
 After copying the starter, rename `gitignore.template` to `.gitignore` before installing dependencies. This keeps the file available in npm and bundled CLI resources.
+
+## Deploy on Coolify (Docker)
+
+This repo also runs self-hosted on Coolify with no Qoder platform dependency: a small
+Node server (`server/`) serves the built `dist/` and mounts the application router at
+`/functions/v1/app/*` against its own Postgres.
+
+1. In Coolify, create a resource from this repo and choose **Docker Compose** (it uses
+   `docker-compose.yml`).
+2. Set environment variables (Coolify → Environment):
+   - `DB_PASSWORD` — strong password for Postgres.
+   - `APP_ORIGIN` — the app's public **https** origin, e.g. `https://app.example.com`.
+     It must match the domain you assign to the `app` service (used for CSRF origin checks).
+   - Optional first-boot account passwords: `ADMIN_PASSWORD`, `ACCOUNTANT_PASSWORD`,
+     `CASHIER_PASSWORD`, `VIEWER_PASSWORD`. If omitted, a random password is generated and
+     printed **once** in the `app` logs on first start.
+3. Assign a domain to the `app` service (container port `3000`). The compose publishes no
+   host ports — Coolify's proxy routes to the container port.
+4. Deploy. On first boot the `app` container creates the schema and seeds demo data, then
+   serves. Record the bootstrap credentials from the `app` logs.
+
+Local run (binds to 127.0.0.1 for testing only):
+
+```bash
+cp .env.example .env      # set DB_PASSWORD, and APP_ORIGIN=http://127.0.0.1:3000
+docker compose up --build # http://127.0.0.1:3000
+```
+
+Notes:
+- Writes require `Origin` to equal `APP_ORIGIN` (CSRF). Behind Coolify's TLS proxy this
+  matches automatically; for local http, set `APP_ORIGIN=http://127.0.0.1:3000`
+  (enforcement auto-disables for non-https origins).
+- Data lives in the `db_data` volume; back it up. `docker compose down -v` deletes it.
+- The seed is synthetic demo data; the source workbook is not part of the image.
